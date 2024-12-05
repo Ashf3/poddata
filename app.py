@@ -29,7 +29,9 @@ def upload_file():
         result = df.to_json(orient='split', date_unit='ms')
         
         # Return the processed data as JSON
-        return jsonify(result), 200
+        #return jsonify(result), 200
+        return "Allgood", 200 
+    
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
