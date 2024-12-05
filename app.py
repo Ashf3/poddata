@@ -9,7 +9,7 @@ def upload_file():
     
     # Check if file exists and is a CSV
     if not file or not file.filename.endswith('.csv'):
-        return jsonify({"error": "Invalid file type. Please upload a CSV file."}), 200
+        return jsonify({"error": "Invalid file type. Please upload a CSV file."}), 400
     
     try:
         # Read the CSV file, skipping the first two rows and ignoring the last two rows
