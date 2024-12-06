@@ -21,7 +21,7 @@ user_data_store = {}
 @app.route('/upload', methods=['POST'])
 def upload_file():
     # Check if user has a session and retrieve user_id
-    user_id = request.header.get('user_id')
+    user_id = request.headers.get('user_id')
 
     if not user_id:
         return jsonify({"error": "User ID is missing from the request."}), 400
@@ -57,7 +57,7 @@ def upload_file():
 @app.route('/data', methods=['GET'])
 def get_data():
     # Retrieve user_id from session
-    user_id = request.header.get('user_id')
+    user_id = request.headers.get('user_id')
 
     if not user_id or user_id not in user_data_store:
         return jsonify({"error": "No data available for this user. Please upload a file first."}), 400
@@ -73,7 +73,7 @@ def get_data():
 @app.route('/top-products', methods=['GET'])
 def get_top_products():
 
-    user_id = request.header.get('user_id')
+    user_id = request.headers.get('user_id')
 
     if not user_id or user_id not in user_data_store:
         return jsonify({"error": "No data available for this user. Please upload a file first."}), 400
@@ -118,7 +118,7 @@ def get_top_products():
 @app.route('/top-designs', methods=['GET'])
 def get_top_designs():
 
-    user_id = request.header.get('user_id')
+    user_id = request.headers.get('user_id')
 
     if not user_id or user_id not in user_data_store:
         return jsonify({"error": "No data available for this user. Please upload a file first."}), 400
