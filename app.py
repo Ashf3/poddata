@@ -20,7 +20,7 @@ user_data_store = {}
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    print("Request Headers:", request.headers)
+    #print("Request Headers:", request.headers)
     # Check if user has a session and retrieve userid
     userid = request.headers.get('Authorization')
 
@@ -159,6 +159,82 @@ def get_top_designs():
     top_designs = top_designs.to_dict(orient='records')
 
     return jsonify({"top_designs": top_designs})
+
+@app.route('/tee-totals', methods=['GET'])
+def get_teepublic_totals():
+
+    userid = request.headers.get('Authorization')
+
+    if not userid or userid not in user_data_store:
+        return jsonify({"error": "No data available for this user. Please upload a file first."}), 400
+
+    df = user_data_store[userid]
+
+    try:
+        df['Order Date'] = pd.to_datetime(df['Order Date'], utc=True)
+
+        # Time comparisons
+        today = pd.Timestamp.now(tz='UTC').normalize()
+        start_of_week = today - pd.Timedelta(days=today.weekday())
+        start_of_month = today.replace(day=1)
+        start_of_year = today.replace(month=1, day=1)
+
+        # Filter DataFrames for specific periods
+        today_data = df[df['Order Date'] >= today]
+        week_data = df[df['Order Date'] >= start_of_week]
+        month_data = df[df['Order Date'] >= start_of_month]
+        year_data = df[df['Order Date'] >= start_of_year]
+
+        # Helper to calculate totals
+        def calculate_totals(filtered_df, column):
+            return filtered_df[column].sum()
+
+        # Total Earnings
+        earnings = {
+            "all_time": calculate_totals(df, 'Total Earnings'),
+            "today": calculate_totals(today_data, 'Total Earnings'),
+            "week": calculate_totals(week_data, 'Total Earnings'),
+            "month": calculate_totals(month_data, 'Total Earnings'),
+            "year": calculate_totals(year_data, 'Total Earnings'),
+        }
+
+        # Affiliate Earnings
+        affiliate_earnings = {
+            "all_time": calculate_totals(df, 'Affiliate Earnings'),
+            "today": calculate_totals(today_data, 'Affiliate Earnings'),
+            "week": calculate_totals(week_data, 'Affiliate Earnings'),
+            "month": calculate_totals(month_data, 'Affiliate Earnings'),
+            "year": calculate_totals(year_data, 'Affiliate Earnings'),
+        }
+
+        # Designer Earnings
+        designer_earnings = {
+            "all_time": calculate_totals(df, 'Designer Earnings'),
+            "today": calculate_totals(today_data, 'Designer Earnings'),
+            "week": calculate_totals(week_data, 'Designer Earnings'),
+            "month": calculate_totals(month_data, 'Designer Earnings'),
+            "year": calculate_totals(year_data, 'Designer Earnings'),
+        }
+
+        # Sales Counts
+        sales_counts = {
+            "all_time": len(df),
+            "today": len(today_data),
+            "week": len(week_data),
+            "month": len(month_data),
+            "year": len(year_data),
+        }
+
+        return jsonify({
+            "total_earnings": earnings,
+            "affiliate_earnings": affiliate_earnings,
+            "designer_earnings": designer_earnings,
+            "sales_counts": sales_counts,
+        })
+
+    except Exception as e:
+        return jsonify({"error": f"An error occurred while processing the data: {str(e)}"}), 500
+
 
 if __name__ == "__main__":
     app.run(debug=True)
