@@ -13,21 +13,22 @@ app.config['SESSION_PERMANENT'] = False  # Sessions are not permanent by default
 app.config['SESSION_USE_SIGNER'] = True  # Optionally, add extra security to session cookies
 
 # Initialize session with Flask
-Session(app)
+#Session(app)
 
 # In-memory store for user-specific processed data
 user_data_store = {}
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    # Check if user has a session and retrieve user_id
-    user_id = request.headers.get('user_id')
+    print("Request Headers:", request.headers)
+    # Check if user has a session and retrieve userid
+    userid = request.headers.get('Authorization')
 
-    if not user_id:
+    if not userid:
         return jsonify({"error": "User ID is missing from the request."}), 400
     
-    if not session.get('user_id'):
-        session['user_id'] = user_id
+    if not session.get('userid'):
+        session['userid'] = userid
     
 
 
@@ -47,7 +48,7 @@ def upload_file():
         df['Affiliate Earnings'] = pd.to_numeric(df['Affiliate Earnings'], errors='coerce')
 
         # Store the processed data for this user in the user_data_store
-        user_data_store[user_id] = df
+        user_data_store[userid] = df
         return jsonify({"message": "File processed successfully."}), 200
 
     except Exception as e:
@@ -56,14 +57,14 @@ def upload_file():
 
 @app.route('/data', methods=['GET'])
 def get_data():
-    # Retrieve user_id from session
-    user_id = request.headers.get('user_id')
+    # Retrieve userid from session
+    userid = request.headers.get('Authorization')
 
-    if not user_id or user_id not in user_data_store:
+    if not userid or userid not in user_data_store:
         return jsonify({"error": "No data available for this user. Please upload a file first."}), 400
 
     # Fetch the user's data
-    df = user_data_store[user_id]
+    df = user_data_store[userid]
 
     # Convert DataFrame to JSON
     result = df.to_json(orient='split', date_unit='ms')
@@ -73,12 +74,12 @@ def get_data():
 @app.route('/top-products', methods=['GET'])
 def get_top_products():
 
-    user_id = request.headers.get('user_id')
+    userid = request.headers.get('Authorization')
 
-    if not user_id or user_id not in user_data_store:
+    if not userid or userid not in user_data_store:
         return jsonify({"error": "No data available for this user. Please upload a file first."}), 400
 
-    df = user_data_store[user_id]
+    df = user_data_store[userid]
     
     # Load the DataFrame from the session
     df['Order Date'] = pd.to_datetime(df['Order Date'],unit='ms', utc=True) 
@@ -118,12 +119,12 @@ def get_top_products():
 @app.route('/top-designs', methods=['GET'])
 def get_top_designs():
 
-    user_id = request.headers.get('user_id')
+    userid = request.headers.get('Authorization')
 
-    if not user_id or user_id not in user_data_store:
+    if not userid or userid not in user_data_store:
         return jsonify({"error": "No data available for this user. Please upload a file first."}), 400
 
-    df = user_data_store[user_id]
+    df = user_data_store[userid]
     
     # Load the DataFrame from the session
     df['Order Date'] = pd.to_datetime(df['Order Date'],unit='ms', utc=True) 
