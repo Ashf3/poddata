@@ -67,5 +67,94 @@ def get_data():
     return result, 200
 
 
+@app.route('/top-products', methods=['GET'])
+def get_top_products():
+
+    user_id = session.get('user_id')
+
+    if not user_id or user_id not in user_data_store:
+        return jsonify({"error": "No data available for this user. Please upload a file first."}), 400
+
+    df = user_data_store[user_id]
+    
+    # Load the DataFrame from the session
+    df['Order Date'] = pd.to_datetime(df['Order Date'],unit='ms', utc=True) 
+
+    # Get the selected period from the query parameters
+    period = request.args.get('period', 'alltime')
+    today = pd.Timestamp.now(tz='UTC').normalize()
+    start_of_week = today - pd.Timedelta(days=today.weekday())
+    start_of_month = today.replace(day=1)
+    start_of_year = today.replace(month=1, day=1)
+
+    if period == 'today':
+        df = df[df['Order Date'] >= today]
+    elif period == 'week':
+        df = df[df['Order Date'] >= start_of_week]
+    elif period == 'month':
+        df = df[df['Order Date'] >= start_of_month]
+    elif period == 'year':
+        df = df[df['Order Date'] >= start_of_year]
+    else:
+        df = df  # Default to all data for 'alltime'
+
+    top_products = (
+        df.groupby('Product')
+        .size()
+        .reset_index(name='count')
+        .sort_values(by='count', ascending=False)
+        .head(10)
+    )
+
+    # Convert the DataFrame to a list of dictionaries
+    top_products = top_products.to_dict(orient='records')
+
+    return jsonify({"top_products": top_products})
+
+
+@app.route('/top-designs', methods=['GET'])
+def get_top_designs():
+
+    user_id = session.get('user_id')
+
+    if not user_id or user_id not in user_data_store:
+        return jsonify({"error": "No data available for this user. Please upload a file first."}), 400
+
+    df = user_data_store[user_id]
+    
+    # Load the DataFrame from the session
+    df['Order Date'] = pd.to_datetime(df['Order Date'],unit='ms', utc=True) 
+
+    # Get the selected period from the query parameters
+    period = request.args.get('period', 'alltime')
+    today = pd.Timestamp.now(tz='UTC').normalize()
+    start_of_week = today - pd.Timedelta(days=today.weekday())
+    start_of_month = today.replace(day=1)
+    start_of_year = today.replace(month=1, day=1)
+
+    if period == 'today':
+        df = df[df['Order Date'] >= today]
+    elif period == 'week':
+        df = df[df['Order Date'] >= start_of_week]
+    elif period == 'month':
+        df = df[df['Order Date'] >= start_of_month]
+    elif period == 'year':
+        df = df[df['Order Date'] >= start_of_year]
+    else:
+        df = df  # Default to all data for 'alltime'
+
+    top_designs = (
+        df.groupby('Title')
+        .size()
+        .reset_index(name='count')
+        .sort_values(by='count', ascending=False)
+        .head(10)
+    )
+
+    # Convert the DataFrame to a list of dictionaries
+    top_designs = top_designs.to_dict(orient='records')
+
+    return jsonify({"top_designs": top_designs})
+
 if __name__ == "__main__":
     app.run(debug=True)
