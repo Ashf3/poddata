@@ -236,5 +236,44 @@ def get_teepublic_totals():
         return jsonify({"error": f"An error occurred while processing the data: {str(e)}"}), 500
 
 
+@app.route('/tee-sales-data', methods=['GET'])
+def get_sales_data():
+    user_id = request.headers.get('Authorization')
+
+    if not user_id or user_id not in user_data_store:
+        return jsonify({"error": "No data available for this user. Please upload a file first."}), 400
+
+    df = user_data_store[user_id]
+
+    try:
+        # Ensure 'Order Date' is in datetime format
+        df['Order Date'] = pd.to_datetime(df['Order Date'], utc=True)
+
+        # Helper to generate time series data
+        def generate_time_series_data(df, period, date_column, freq, date_format):
+            df[period] = df[date_column].dt.to_period(freq)  # Create a period-based column
+            sales = df.groupby(period).size()  # Group by period and count sales
+            all_periods = pd.period_range(start=df[period].min(), end=df[period].max(), freq=freq)
+            sales = sales.reindex(all_periods, fill_value=0).reset_index()  # Fill missing periods with 0
+            sales.columns = [period, 'Sales']  # Rename columns
+            sales[period] = sales[period].dt.strftime(date_format)  # Format period for JSON compatibility
+            return sales
+
+        # Generate sales data for each granularity
+        monthly_sales = generate_time_series_data(df, 'YearMonth', 'Order Date', 'M', '%Y-%m')
+        weekly_sales = generate_time_series_data(df, 'YearWeek', 'Order Date', 'W', '%Y-%W')
+        daily_sales = generate_time_series_data(df, 'YearDay', 'Order Date', 'D', '%Y-%m-%d')
+
+        # Convert results to JSON-friendly format
+        return jsonify({
+            "monthly_sales_data": monthly_sales.to_dict(orient='records'),
+            "weekly_sales_data": weekly_sales.to_dict(orient='records'),
+            "daily_sales_data": daily_sales.to_dict(orient='records'),
+        })
+
+    except Exception as e:
+        return jsonify({"error": f"An error occurred while processing the data: {str(e)}"}), 500
+
+
 if __name__ == "__main__":
     app.run(debug=True)
