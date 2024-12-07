@@ -275,5 +275,50 @@ def get_sales_data():
         return jsonify({"error": f"An error occurred while processing the data: {str(e)}"}), 500
 
 
+@app.route('/tee-individual-sales', methods=['GET'])
+def get_teepublic_sales():
+    userid = request.headers.get('Authorization')
+    time_scale = request.args.get('time_scale', 'all_time')
+
+    if not userid or userid not in user_data_store:
+        return jsonify({"error": "No data available for this user. Please upload a file first."}), 400
+
+    df = user_data_store[userid]
+
+    try:
+        df['Order Date'] = pd.to_datetime(df['Order Date'], utc=True)
+
+        # Time comparisons
+        today = pd.Timestamp.now(tz='UTC').normalize()
+        start_of_week = today - pd.Timedelta(days=today.weekday())
+        start_of_month = today.replace(day=1)
+        start_of_year = today.replace(month=1, day=1)
+
+        # Filter DataFrames for specific periods
+        if time_scale == 'today':
+            filtered_df = df[df['Order Date'] >= today]
+        elif time_scale == 'week':
+            filtered_df = df[df['Order Date'] >= start_of_week]
+        elif time_scale == 'month':
+            filtered_df = df[df['Order Date'] >= start_of_month]
+        elif time_scale == 'year':
+            filtered_df = df[df['Order Date'] >= start_of_year]
+        elif time_scale == 'all_time':
+            filtered_df = df
+        else:
+            return jsonify({"error": "Invalid time scale. Use one of 'today', 'week', 'month', 'year', or 'all_time'."}), 400
+
+        # Select relevant columns
+        result = filtered_df[['Title', 'Total Earnings', 'Order Date']].to_dict(orient='records')
+
+        return jsonify({
+            "time_scale": time_scale,
+            "designs_sold": result
+        })
+
+    except Exception as e:
+        return jsonify({"error": f"An error occurred while processing the data: {str(e)}"}), 500
+
+
 if __name__ == "__main__":
     app.run(debug=True)
