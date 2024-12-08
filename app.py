@@ -297,6 +297,48 @@ def get_sales_data():
     except Exception as e:
         return jsonify({"error": f"An error occurred while processing the data: {str(e)}"}), 500
 
+@app.route('/tee-earnings-data', methods=['GET'])
+def get_earnings_data():
+    user_id = request.headers.get('Authorization')
+
+    if not user_id or user_id not in user_data_store:
+        return jsonify({"error": "No data available for this user. Please upload a file first."}), 400
+
+    df = user_data_store[user_id]
+
+    try:
+        # Ensure 'Order Date' is in datetime format
+        df['Order Date'] = pd.to_datetime(df['Order Date'], utc=True)
+        
+        # Ensure 'Total Earnings' is numeric
+        if 'Total Earnings' not in df.columns or not pd.api.types.is_numeric_dtype(df['Total Earnings']):
+            return jsonify({"error": "'Total Earnings' column is missing or not numeric."}), 400
+
+        # Helper to generate time series data
+        def generate_time_series_data(df, period, date_column, freq, date_format, value_column):
+            df[period] = df[date_column].dt.to_period(freq)  # Create a period-based column
+            sales = df.groupby(period)[value_column].sum()  # Group by period and sum the earnings
+            all_periods = pd.period_range(start=df[period].min(), end=df[period].max(), freq=freq)
+            sales = sales.reindex(all_periods, fill_value=0).reset_index()  # Fill missing periods with 0
+            sales.columns = [period, 'Total Earnings']  # Rename columns
+            sales[period] = sales[period].dt.strftime(date_format)  # Format period for JSON compatibility
+            return sales
+
+        # Generate sales data for each granularity
+        monthly_sales = generate_time_series_data(df, 'YearMonth', 'Order Date', 'M', '%Y-%m', 'Total Earnings')
+        weekly_sales = generate_time_series_data(df, 'YearWeek', 'Order Date', 'W', '%Y-%W', 'Total Earnings')
+        daily_sales = generate_time_series_data(df, 'YearDay', 'Order Date', 'D', '%Y-%m-%d', 'Total Earnings')
+
+        # Convert results to JSON-friendly format
+        return jsonify({
+            "monthly_sales_data": monthly_sales.to_dict(orient='records'),
+            "weekly_sales_data": weekly_sales.to_dict(orient='records'),
+            "daily_sales_data": daily_sales.to_dict(orient='records'),
+        })
+
+    except Exception as e:
+        return jsonify({"error": f"An error occurred while processing the data: {str(e)}"}), 500
+
 
 @app.route('/tee-individual-sales', methods=['GET'])
 def get_teepublic_sales():
