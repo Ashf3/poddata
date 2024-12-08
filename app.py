@@ -225,11 +225,34 @@ def get_teepublic_totals():
             "year": len(year_data),
         }
 
+        def calculate_averages(total, period_length):
+            return round(total / period_length, 2) if period_length > 0 else 0
+
+        # Calculate time spans
+        total_days = (df['Order Date'].max() - df['Order Date'].min()).days + 1
+        total_weeks = total_days / 7
+        total_months = total_days / 30.44  # Approximate average month length
+
+        # Averages
+        average_sales = {
+            "per_day": calculate_averages(sales_counts["all_time"], total_days),
+            "per_week": calculate_averages(sales_counts["all_time"], total_weeks),
+            "per_month": calculate_averages(sales_counts["all_time"], total_months),
+        }
+
+        average_earnings = {
+            "per_day": calculate_averages(earnings["all_time"], total_days),
+            "per_week": calculate_averages(earnings["all_time"], total_weeks),
+            "per_month": calculate_averages(earnings["all_time"], total_months),
+        }
+
         return jsonify({
             "total_earnings": earnings,
             "affiliate_earnings": affiliate_earnings,
             "designer_earnings": designer_earnings,
             "sales_counts": sales_counts,
+            "average_sales": average_sales,
+            "average_earnings": average_earnings,
         })
 
     except Exception as e:
